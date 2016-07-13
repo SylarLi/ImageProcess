@@ -1,10 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.25123.0
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreyScale", "ImageProcess\GreyScale\GreyScale.csproj", "{D45DB883-D8EF-47AB-849A-C66438D8E670}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Resources", "ImageProcess\Resources\Resources.csproj", "{13D25F80-4920-4AF8-B30B-48802D5AF489}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EdgeDetection", "ImageProcess\EdgeDetection\EdgeDetection.csproj", "{FA8785D0-285B-4319-B2D6-2021DF0FB4C0}"
@@ -15,10 +13,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{D45DB883-D8EF-47AB-849A-C66438D8E670}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D45DB883-D8EF-47AB-849A-C66438D8E670}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D45DB883-D8EF-47AB-849A-C66438D8E670}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D45DB883-D8EF-47AB-849A-C66438D8E670}.Release|Any CPU.Build.0 = Release|Any CPU
 		{13D25F80-4920-4AF8-B30B-48802D5AF489}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{13D25F80-4920-4AF8-B30B-48802D5AF489}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{13D25F80-4920-4AF8-B30B-48802D5AF489}.Release|Any CPU.ActiveCfg = Release|Any CPU
