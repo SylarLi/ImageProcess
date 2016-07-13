@@ -2,15 +2,18 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 
+/// <summary>
+/// Canny边缘检测
+/// </summary>
 public class Canny
 {
-    /// <summary>
-    /// Sobel算子
-    /// </summary>
+    // Sobel算子
     private float[,] Gx;
     private float[,] Gy;
-    private float Min;
-    private float Max;
+
+    // 双边阈值
+    private float TMin;
+    private float TMax;
 
     public Canny()
     {
@@ -26,181 +29,189 @@ public class Canny
             { 0, 0, 0 },
             { 1, 2, 1 }
         };
-        Max = 100;
-        Min = Max / 4;
+        TMin = 10;
+        TMax = 40;
+    }
+
+    public bool Process(Bitmap from, out Bitmap to)
+    {
+        byte[] source = null;
+        double[,] gradients = null;
+        double[,] angles = null;
+        byte[,] nms = null;
+        byte[] pixels = null;
+        BitmapData fromData = from.LockBits(new Rectangle(0, 0, from.Width, from.Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+        LoadSource(fromData, out source);
+        SobelFilter(fromData, source, out gradients, out angles);
+        NoneMaximumSuppression(fromData, gradients, angles, out nms);
+        EdgeTracking(fromData, nms);
+        NMSToPixels(fromData, nms, out pixels);
+        to = new Bitmap(from.Width, from.Height, from.PixelFormat);
+        BitmapData toData = to.LockBits(new Rectangle(0, 0, to.Width, to.Height), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+        IntPtr toPtr = toData.Scan0;
+        System.Runtime.InteropServices.Marshal.Copy(pixels, 0, toPtr, pixels.Length);
+        from.UnlockBits(fromData);
+        to.UnlockBits(toData);
+        return true;
+    }
+
+    private void LoadSource(BitmapData fromData, out byte[] source)
+    {
+        IntPtr fromPtr = fromData.Scan0;
+        int byteSize = Math.Abs(fromData.Stride) * fromData.Height;
+        source = new byte[byteSize];
+        System.Runtime.InteropServices.Marshal.Copy(fromPtr, source, 0, source.Length);
     }
 
     /// <summary>
-    /// Canny边缘检测
+    /// sobel filter --> gradient magnitude and gradient angle
     /// </summary>
-    /// <param name="from"></param>
-    /// <param name="to"></param>
-    /// <returns></returns>
-    public bool Process(Bitmap from, out Bitmap to)
+    /// <param name="bmpData"></param>
+    /// <param name="source"></param>
+    /// <param name="gradients"></param>
+    /// <param name="angles"></param>
+    private void SobelFilter(BitmapData bmpData, byte[] source, out double[,] gradients, out double[,] angles)
     {
-        BitmapData fromData = from.LockBits(new Rectangle(0, 0, from.Width, from.Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
-        IntPtr fromPtr = fromData.Scan0;
-        int byteSize = Math.Abs(fromData.Stride) * fromData.Height;
-        byte[] source = new byte[byteSize];
-        double[,,] gradient = new double[fromData.Width, fromData.Height, 2];
-        byte[,] edge = new byte[fromData.Width, fromData.Height];
-        byte[] values = new byte[byteSize];
-        System.Runtime.InteropServices.Marshal.Copy(fromPtr, source, 0, source.Length);
-        // Sobel算子滤波(Sobel filter)
-        int kernel = Gx.GetLength(0);
-        int kernel2 = kernel / 2;
-        for (int j = 0; j < fromData.Height; j++)
+        gradients = new double[bmpData.Width, bmpData.Height];
+        angles = new double[bmpData.Width, bmpData.Height];
+        int maxH = bmpData.Height - 2;
+        int maxW = bmpData.Width - 2;
+        for (int j = 1; j <= maxH; j++)
         {
-            int bi = j * fromData.Stride;
-            for (int i = 0; i < fromData.Width; i++)
+            int bi = j * bmpData.Stride;
+            for (int i = 1; i <= maxW; i++)
             {
                 double gx = 0;
                 double gy = 0;
-                int gimin = Math.Max(0, i - kernel2);
-                int gimax = Math.Min(fromData.Width - 1, i + kernel2);
-                int gjmin = Math.Max(0, j - kernel2);
-                int gjmax = Math.Min(fromData.Height - 1, j + kernel2);
+                int gimin = i - 1;
+                int gimax = i + 1;
+                int gjmin = j - 1;
+                int gjmax = j + 1;
                 for (int gj = gjmin; gj <= gjmax; gj++)
                 {
-                    int gbi = gj * fromData.Stride;
+                    int gbi = gj * bmpData.Stride;
                     for (int gi = gimin; gi <= gimax; gi++)
                     {
                         int gii = gbi + gi * 3;
-                        int fx = gi + kernel2 - i;
-                        int fy = gj + kernel2 - j;
-                        gx += source[gii] * Gx[fx, fy];
-                        gy += source[gii] * Gy[fx, fy];
+                        int fx = gi + 1 - i;
+                        int fy = gj + 1 - j;
+                        gx += source[gii] * Gx[fy, fx];
+                        gy += source[gii] * Gy[fy, fx];
                     }
                 }
                 int ii = bi + i * 3;
                 double magnitude = Math.Sqrt(gx * gx + gy * gy);
                 double angle = Math.Atan2(gy, gx) / Math.PI * 180;
                 if (angle < 0) angle = angle + 180;
-                gradient[i, j, 0] = magnitude;
-                gradient[i, j, 1] = angle;
+                gradients[i, j] = magnitude;
+                angles[i, j] = angle;
             }
         }
-        // 非极大值抑制(None-maximum suppression)
-        for (int j = 0; j < fromData.Height; j++)
+    }
+
+    /// <summary>
+    /// 非极大值抑制 --> 0 none, 1 weak edge, 2 strong edge
+    /// </summary>
+    /// <param name="bmpData"></param>
+    /// <param name="gradients"></param>
+    /// <param name="angles"></param>
+    /// <param name="nms"></param>
+    private void NoneMaximumSuppression(BitmapData bmpData, double[,] gradients, double[,] angles, out byte[,] nms)
+    {
+        nms = new byte[bmpData.Width, bmpData.Height];
+        int maxH = bmpData.Height - 2;
+        int maxW = bmpData.Width - 2;
+        for (int j = 1; j <= maxH; j++)
         {
-            int bi = j * fromData.Stride;
-            for (int i = 0; i < fromData.Width; i++)
+            int bi = j * bmpData.Stride;
+            for (int i = 1; i <= maxW; i++)
             {
                 int ii = bi + i * 3;
-                double magnitude = gradient[i, j, 0];
-                double angle = gradient[i, j, 1];
-                double left = 0;
-                double right = 0;
-                double top = 0;
-                double bottom = 0;
-                double topLeft = 0;
-                double topRight = 0;
-                double bottomLeft = 0;
-                double bottomRight = 0;
-                if (i - 1 >= 0)
-                {
-                    left = gradient[i - 1, j, 0];
-                    if (j - 1 >= 0) topLeft = gradient[i - 1, j - 1, 0];
-                    if (j + 1 < fromData.Height) bottomLeft = gradient[i - 1, j + 1, 0];
-                }
-                if (i + 1 < fromData.Width)
-                {
-                    right = gradient[i + 1, j, 0];
-                    if (j - 1 >= 0) topRight = gradient[i + 1, j - 1, 0];
-                    if (j + 1 < fromData.Height) bottomRight = gradient[i + 1, j + 1, 0];
-                }
-                if (j - 1 >= 0) top = gradient[i, j - 1, 0];
-                if (j + 1 < fromData.Height) bottom = gradient[i, j + 1, 0];
+                double magnitude = gradients[i, j];
+                double angle = angles[i, j];
                 double v1 = 0;
                 double v2 = 0;
                 if (angle >= 22.5f && angle < 67.5f)
                 {
-                    v1 = topRight;
-                    v2 = bottomLeft;
+                    v1 = gradients[i - 1, j - 1];
+                    v2 = gradients[i + 1, j + 1];
                 }
                 else if (angle >= 67.5f && angle < 112.5f)
                 {
-                    v1 = top;
-                    v2 = bottom;
+                    v1 = gradients[i, j - 1];
+                    v2 = gradients[i, j + 1]; ;
                 }
                 else if (angle >= 112.5f && angle < 157.5f)
                 {
-                    v1 = topLeft;
-                    v2 = bottomRight;
+                    v1 = gradients[i + 1, j - 1];
+                    v2 = gradients[i - 1, j + 1];
                 }
                 else
                 {
-                    v1 = right;
-                    v2 = left;
+                    v1 = gradients[i - 1, j];
+                    v2 = gradients[i + 1, j];
                 }
-                // 0 none, 1 weak, 2 strong
-                edge[i, j] = 0;
                 if (magnitude >= v1 && magnitude >= v2)
                 {
-                    if (magnitude >= Max)
-                    {
-                        edge[i, j] = 2;
-                    }
-                    else if (magnitude >= Min)
-                    {
-                        edge[i, j] = 1;
-                    }
+                    if (magnitude >= TMax) nms[i, j] = 2;
+                    else if (magnitude >= TMin) nms[i, j] = 1;
                 }
             }
         }
-        // Edge tracking(blob analysis)
-        bool[,] visited = new bool[fromData.Width, fromData.Height];
-        for (int j = kernel2; j < fromData.Height - kernel2; j++)
-        {
-            int bi = j * fromData.Stride;
-            for (int i = kernel2; i < fromData.Width - kernel2; i++)
-            {
-                int ii = bi + i * 3;
-                if (edge[i, j] == 2)
-                {
-                    Hysteresis(edge, visited, i, j);
-                }
-            }
-        }
-        for (int j = 0; j < fromData.Height; j++)
-        {
-            int bi = j * fromData.Stride;
-            for (int i = 0; i < fromData.Width; i++)
-            {
-                int ii = bi + i * 3;
-                if (edge[i, j] == 2)
-                {
-                    values[ii] = values[ii + 1] = values[ii + 2] = 255;
-                }
-            }
-        }
-        to = new Bitmap(from.Width, from.Height, from.PixelFormat);
-        BitmapData toData = to.LockBits(new Rectangle(0, 0, to.Width, to.Height), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
-        IntPtr toPtr = toData.Scan0;
-        System.Runtime.InteropServices.Marshal.Copy(values, 0, toPtr, values.Length);
-        from.UnlockBits(fromData);
-        to.UnlockBits(toData);
-        return true;
     }
 
-    private void Hysteresis(byte[,] edge, bool[,] visited, int i, int j)
+    /// <summary>
+    /// Edge tracking by hysteresis(recursive)
+    /// </summary>
+    /// <param name="bmpData"></param>
+    /// <param name="nms"></param>
+    private void EdgeTracking(BitmapData bmpData, byte[,] nms)
+    {
+        bool[,] visited = new bool[bmpData.Width, bmpData.Height];
+        int maxH = bmpData.Height - 2;
+        int maxW = bmpData.Width - 2;
+        for (int j = 1; j <= maxH; j++)
+        {
+            for (int i = 1; i <= maxW; i++)
+            {
+                if (nms[i, j] == 2) Hysteresis(nms, visited, i, j);
+            }
+        }
+    }
+
+    private void Hysteresis(byte[,] nms, bool[,] visited, int i, int j)
     {
         if (visited[i, j]) return;
         visited[i, j] = true;
-        int kernel = Gx.GetLength(0);
-        int kernel2 = kernel / 2;
-        int gimin = i - kernel2;
-        int gimax = i + kernel2;
-        int gjmin = j - kernel2;
-        int gjmax = j + kernel2;
+        int gimin = i - 1;
+        int gimax = i + 1;
+        int gjmin = j - 1;
+        int gjmax = j + 1;
         for (int gj = gjmin; gj <= gjmax; gj++)
         {
             for (int gi = gimin; gi <= gimax; gi++)
             {
-                if (edge[gi, gj] == 1)
+                if (nms[gi, gj] == 1)
                 {
-                    edge[gi, gj] = 2;
-                    Hysteresis(edge, visited, gi, gj);
+                    nms[gi, gj] = 2;
+                    Hysteresis(nms, visited, gi, gj);
+                }
+            }
+        }
+    }
+
+    private void NMSToPixels(BitmapData bmpData, byte[,] nms, out byte[] pixels)
+    {
+        pixels = new byte[bmpData.Stride * bmpData.Height];
+        for (int j = 0; j < bmpData.Height; j++)
+        {
+            int bi = j * bmpData.Stride;
+            for (int i = 0; i < bmpData.Width; i++)
+            {
+                int ii = bi + i * 3;
+                if (nms[i, j] == 2)
+                {
+                    pixels[ii] = pixels[ii + 1] = pixels[ii + 2] = 255;
                 }
             }
         }
