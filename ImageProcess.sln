@@ -1,11 +1,19 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Resources", "ImageProcess\Resources\Resources.csproj", "{13D25F80-4920-4AF8-B30B-48802D5AF489}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EdgeDetection", "ImageProcess\EdgeDetection\EdgeDetection.csproj", "{FA8785D0-285B-4319-B2D6-2021DF0FB4C0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gaussian", "ImageProcess\Gaussian\Gaussian.csproj", "{F1BFDA78-41D9-4C14-9DA5-AE4D94397FA7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clutters", "ImageProcess\Clutters\Clutters.csproj", "{A73FBE66-6E2F-4DA4-9B71-005784E28DF0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TextureSynthesis", "ImageProcess\TextureSynthesis\TextureSynthesis.csproj", "{DF44AA92-E544-4BD9-B220-665278DB693E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreyScale", "ImageProcess\GreyScale\GreyScale.csproj", "{5E6295E0-3149-4999-B8EF-8D033087F2B9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +29,22 @@ Global
 		{FA8785D0-285B-4319-B2D6-2021DF0FB4C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FA8785D0-285B-4319-B2D6-2021DF0FB4C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FA8785D0-285B-4319-B2D6-2021DF0FB4C0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1BFDA78-41D9-4C14-9DA5-AE4D94397FA7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1BFDA78-41D9-4C14-9DA5-AE4D94397FA7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1BFDA78-41D9-4C14-9DA5-AE4D94397FA7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1BFDA78-41D9-4C14-9DA5-AE4D94397FA7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A73FBE66-6E2F-4DA4-9B71-005784E28DF0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A73FBE66-6E2F-4DA4-9B71-005784E28DF0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A73FBE66-6E2F-4DA4-9B71-005784E28DF0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A73FBE66-6E2F-4DA4-9B71-005784E28DF0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DF44AA92-E544-4BD9-B220-665278DB693E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DF44AA92-E544-4BD9-B220-665278DB693E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DF44AA92-E544-4BD9-B220-665278DB693E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DF44AA92-E544-4BD9-B220-665278DB693E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5E6295E0-3149-4999-B8EF-8D033087F2B9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5E6295E0-3149-4999-B8EF-8D033087F2B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5E6295E0-3149-4999-B8EF-8D033087F2B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5E6295E0-3149-4999-B8EF-8D033087F2B9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
