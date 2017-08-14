@@ -46,6 +46,10 @@
     <Compile Include="TextureSynthesis.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Clutters\Clutters.csproj">
+      <Project>{a73fbe66-6e2f-4da4-9b71-005784e28df0}</Project>
+      <Name>Clutters</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Gaussian\Gaussian.csproj">
       <Project>{f1bfda78-41d9-4c14-9da5-ae4d94397fa7}</Project>
       <Name>Gaussian</Name>

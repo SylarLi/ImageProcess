@@ -18,7 +18,7 @@ class Program
         Bitmap source = new Bitmap(sourcePath);
         Bitmap noise = new Bitmap(noisePath);
         Bitmap output = null;
-        TextureSynthesis ts = new TextureSynthesis(source, noise, 5, 1);
+        TextureSynthesis ts = new TextureSynthesis(source, noise, 3, 1);
         DateTime t1 = DateTime.Now;
         if (ts.Process(out output))
         {

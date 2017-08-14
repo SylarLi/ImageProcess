@@ -5,7 +5,7 @@
 /// </summary>
 public class GaussianRandom
 {
-    private static Random RND = new Random();
+    private static Random RND = new Random(DateTime.Now.Millisecond);
 
     public static float Random()
     {

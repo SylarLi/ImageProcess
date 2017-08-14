@@ -94,7 +94,7 @@ namespace Gaussian
             string outputPath = "../../../Resources/gaussian-noise-map.png";
             Bitmap output = null;
             DateTime t1 = DateTime.Now;
-            if (noise.Process(512, 512, out output))
+            if (noise.Process(128, 128, out output))
             {
                 output.Save(outputPath);
                 Process process = Process.Start("explorer.exe", Path.GetFullPath(outputPath));

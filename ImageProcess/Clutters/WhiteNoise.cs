@@ -19,7 +19,7 @@ public class WhiteNoise
     public bool Process(int width, int height, out Bitmap to)
     {
         Random rnd = new Random();
-        int bbp = 3;
+        int bbp = 4;
         int byteSize = width * height * bbp;
         int stride = width * bbp;
         byte[] values = new byte[byteSize];
@@ -30,13 +30,13 @@ public class WhiteNoise
             {
                 // BGR
                 int ii = bi + i * bbp;
-                byte number = (byte)(rnd.Next() * 255);
-                values[ii + 2] = number;
-                values[ii + 1] = number;
-                values[ii] = number;
+                values[ii + 3] = (byte)(rnd.Next() * 255);
+                values[ii + 2] = (byte)(rnd.Next() * 255);
+                values[ii + 1] = (byte)(rnd.Next() * 255);
+                values[ii] = (byte)(rnd.Next() * 255);
             }
         }
-        to = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+        to = new Bitmap(width, height, PixelFormat.Format32bppArgb);
         BitmapData toData = to.LockBits(new Rectangle(0, 0, to.Width, to.Height), ImageLockMode.WriteOnly, to.PixelFormat);
         IntPtr toPtr = toData.Scan0;
         System.Runtime.InteropServices.Marshal.Copy(values, 0, toPtr, values.Length);

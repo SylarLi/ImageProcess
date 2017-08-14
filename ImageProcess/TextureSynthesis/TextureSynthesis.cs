@@ -45,23 +45,25 @@ public class TextureSynthesis
         LevelData[] Ga = BuildPyramid(from);
         LevelData[] Gs = BuildPyramid(noise);
         CollectNeighbor(Ga);
+        //TrainData(Ga);
         for (int i = Gs.Length - 1; i >= 0; i--)
         {
-            for (int y = 0; y < noise.Height; y++)
+            for (int y = 0; y < Gs[i].size; y++)
             {
                 int bi = y * Gs[i].stride;
-                for (int x = 0; x < noise.Width; x++)
+                for (int x = 0; x < Gs[i].size; x++)
                 {
-                    int ii = bi + x * Gs[i].bbp;
+                    int ii = bi + x * Gs[i].bpp;
                     byte[] color = FindBestMatch(Ga, Gs, i, x, y);
-                    for (int p = 0; p < Gs[i].bbp; p++)
+                    //byte[] color = FindBestMatchByVQ(Ga, Gs, i, x, y);
+                    for (int p = 0; p < Gs[i].bpp; p++)
                     {
                         Gs[i].bytes[ii + p] = color[p];
                     }
+                    //if (x == 10) break;
                 }
                 //break;
             }
-            //break;
         }
         to = new Bitmap(Gs[0].size, Gs[0].size, noise.PixelFormat);
         BitmapData toData = to.LockBits(new Rectangle(0, 0, to.Width, to.Height), ImageLockMode.WriteOnly, to.PixelFormat);
@@ -73,17 +75,56 @@ public class TextureSynthesis
 
     private void TrainData(LevelData[] G)
     {
-        
+        for (int level = G.Length - 1; level >= 0; level--)
+        {
+            byte[][][] NB = G[level].NB;
+            List<Vector<float>> samples = new List<Vector<float>>();
+            Dictionary<Vector<float>, int> sampleIndexes = new Dictionary<Vector<float>, int>();
+            for (int x = 0; x < G[level].size; x++)
+            {
+                for (int y = 0; y < G[level].size; y++)
+                {
+                    byte[] nb = NB[x][y];
+                    var sample = LevelData.Bytes2Vector(nb);
+                    samples.Add(sample);
+                    sampleIndexes.Add(sample, y * G[level].size + x);
+                }
+            }
+            var vq = new VQ(samples, G[level].size, 0.001f);
+            vq.Process();
+            var ftree = new Dictionary<Vector<float>, List<Vector<float>>>();
+            foreach (var pair in vq.codeBook)
+            {
+                if (!ftree.ContainsKey(pair.Value)) ftree.Add(pair.Value, new List<Vector<float>>());
+                var list = ftree[pair.Value];
+                list.Add(pair.Key);
+            }
+            var btree = new Dictionary<byte[], List<byte[]>>();
+            var map = new Dictionary<byte[], int>();
+            foreach (var pair in ftree)
+            {
+                btree.Add(
+                    LevelData.Vector2Bytes(pair.Key),
+                    pair.Value.ConvertAll(v => {
+                        var bytes = LevelData.Vector2Bytes(v);
+                        map.Add(bytes, sampleIndexes[v]);
+                        return bytes;
+                    })
+                );
+            }
+            G[level].tree = btree;
+            G[level].map = map;
+        }
     }
 
     private byte[] FindBestMatch(LevelData[] Ga, LevelData[] Gs, int i, int x, int y)
     {
-        byte[] color = new byte[Ga[i].bbp];
-        int minDiff = int.MaxValue;
+        byte[] color = new byte[Ga[i].bpp];
         byte[] Ns = BuildNeighbor(Gs, i, x, y);
+        int minDiff = int.MaxValue;
+        int xmin = -1, ymin = -1;
         for (int ya = 0; ya < Ga[i].size; ya++)
         {
-            int bi = ya * Ga[i].stride;
             for (int xa = 0; xa < Ga[i].size; xa++)
             {
                 byte[] Na = Ga[i].NB[xa][ya];
@@ -91,14 +132,56 @@ public class TextureSynthesis
                 if (diff < minDiff)
                 {
                     minDiff = diff;
-                    int ii = bi + xa * Ga[i].bbp;
-                    for (int p = 0; p < color.Length; p++)
-                    {
-                        color[p] = Ga[i].bytes[ii + p];
-                    }
+                    xmin = xa;
+                    ymin = ya;
                 }
             }
         }
+        int ii = ymin * Ga[i].stride + xmin * Ga[i].bpp;
+        for (int p = 0; p < color.Length; p++)
+        {
+            color[p] = Ga[i].bytes[ii + p];
+        }
+        //Console.WriteLine(string.Format("mm: {0} {1} => {2} {3}", x, y, xmin, ymin));
+        return color;
+    }
+
+    private byte[] FindBestMatchByVQ(LevelData[] Ga, LevelData[] Gs, int i, int x, int y)
+    {
+        byte[] color = new byte[Ga[i].bpp];
+        byte[] Ns = BuildNeighbor(Gs, i, x, y);
+        var tree = Ga[i].tree;
+        var map = Ga[i].map;
+        int minDiff = int.MaxValue;
+        byte[] minCV = null;
+        foreach (var cv in tree.Keys)
+        {
+            int diff = ColorDiff(Ns, cv);
+            if (diff < minDiff)
+            {
+                minDiff = diff;
+                minCV = cv;
+            }
+        }
+        minDiff = int.MaxValue;
+        foreach (var sample in tree[minCV])
+        {
+            int diff = ColorDiff(Ns, sample);
+            if (diff < minDiff)
+            {
+                minDiff = diff;
+                minCV = sample;
+            }
+        }
+        int index = map[minCV];
+        int xmin = index % Ga[i].size;
+        int ymin = index / Ga[i].size;
+        int ii = ymin * Ga[i].stride + xmin * Ga[i].bpp;
+        for (int p = 0; p < color.Length; p++)
+        {
+            color[p] = Ga[i].bytes[ii + p];
+        }
+        //Console.WriteLine(string.Format("vq: {0} {1} => {2} {3}", x, y, xmin, ymin));
         return color;
     }
 
@@ -124,7 +207,7 @@ public class TextureSynthesis
     /// <returns></returns>
     private byte[] BuildNeighbor(LevelData[] G, int i, int x, int y)
     {
-        byte[] nbs = new byte[G[i].NL * G[i].bbp];
+        byte[] nbs = new byte[G[i].NL * G[i].bpp];
         int x2 = x / (i + 1);
         int y2 = y / (i + 1);
         int index = 0;
@@ -145,8 +228,8 @@ public class TextureSynthesis
                     int rix = ix;
                     if (rix < 0) rix = rix + data.size;
                     else if (rix >= data.size) rix = rix - data.size;
-                    int ii = bi + rix * data.bbp;
-                    for (int p = 0; p < data.bbp; p++)
+                    int ii = bi + rix * data.bpp;
+                    for (int p = 0; p < data.bpp; p++)
                     {
                         nbs[index++] = data.bytes[ii + p];
                     }
@@ -160,27 +243,28 @@ public class TextureSynthesis
 
     private LevelData[] BuildPyramid(Bitmap bitmap)
     {
-        Bitmap[] pyramis = new Bitmap[L];
-        pyramis[0] = bitmap;
+        Bitmap[] pyramids = new Bitmap[L];
+        pyramids[0] = bitmap;
         for (int i = 1; i < L; i++)
         {
-            Bitmap last = pyramis[i - 1];
-            pyramis[i] = ResizeImage(last, last.Width / 2, last.Height / 2);
+            Bitmap last = pyramids[i - 1];
+            pyramids[i] = ResizeImage(last, last.Width / 2, last.Height / 2);
         }
-        LevelData[] G = new LevelData[pyramis.Length];
+        LevelData[] G = new LevelData[pyramids.Length];
         for (int i = G.Length - 1; i >= 0; i--)
         {
             LevelData ld = new LevelData();
-            BitmapData data = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadWrite, bitmap.PixelFormat);
+            Bitmap pyramid = pyramids[i];
+            BitmapData data = pyramid.LockBits(new Rectangle(0, 0, pyramid.Width, pyramid.Height), ImageLockMode.ReadWrite, pyramid.PixelFormat);
             IntPtr ptr = data.Scan0;
             int byteSize = Math.Abs(data.Stride) * data.Height;
             byte[] values = new byte[byteSize];
             System.Runtime.InteropServices.Marshal.Copy(ptr, values, 0, values.Length);
-            bitmap.UnlockBits(data);
+            pyramid.UnlockBits(data);
             ld.bytes = values;
             ld.size = data.Width;
-            ld.bbp = data.Stride / data.Width;
-            ld.stride = ld.size * ld.bbp;
+            ld.bpp = data.Stride / data.Width;
+            ld.stride = ld.size * ld.bpp;
             ld.N = (int)Math.Ceiling(N / (i + 1f));
             ld.N2 = (int)(ld.N * 0.5f);
             ld.NL = ld.N * ld.N2 + ld.N2 + 1;
@@ -233,7 +317,7 @@ public class TextureSynthesis
 
         public int size;                        // 宽高
 
-        public int bbp;                         // bytes per pixel
+        public int bpp;                         // bytes per pixel
 
         public int stride;                      // size * bbp
 
@@ -244,5 +328,24 @@ public class TextureSynthesis
         public int NL;                          // neighbor总数量
 
         public byte[][][] NB;                   // neighbor列表
+
+        public Dictionary<byte[], List<byte[]>> tree;         // code vector => list of samples
+
+        public Dictionary<byte[], int> map;     // sample => position
+
+        public static Vector<float> Bytes2Vector(byte[] bytes)
+        {
+            return new Vector<float>(Array.ConvertAll<byte, float>(bytes, b => b));
+        }
+
+        public static byte[] Vector2Bytes(Vector<float> v)
+        {
+            byte[] bytes = new byte[v.dimention];
+            for (int i = 0; i < v.dimention; i++)
+            {
+                bytes[i] = (byte)v[i];
+            }
+            return bytes;
+        }
     }
 }
